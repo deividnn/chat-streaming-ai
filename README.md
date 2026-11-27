@@ -92,16 +92,6 @@ chat-streaming-ai/
 mvn clean test
 ```
 
-### Estrutura de testes
-
-- **Unitários**:
-  - `src/test/java/com/deividnn/provider/AiProviderTest.java`
-  - `src/test/java/com/deividnn/provider/ChatClientResolverTest.java`
-  - `src/test/java/com/deividnn/service/ChatStreamingServiceTest.java`
-  - `src/test/java/com/deividnn/controller/ChatControllerTest.java`
-- **Integração**:
-  - `src/test/java/com/deividnn/ChatStreamingIntegrationTest.java`
-
 ## Subir o projeto com Kiri (com Ollama)
 
 O [Dockerfile](Dockerfile) já vem configurado com **Ollama embutido** (`OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_KEEP_ALIVE=5m`) e baixa automaticamente o modelo configurado em `OLLAMA_MODEL` na primeira execução (padrão: `qwen2.5:0.5b`, ~398 MB).
