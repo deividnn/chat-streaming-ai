@@ -1,0 +1,8 @@
+com\deividnn\config\ChatAiConfig.class
+com\deividnn\service\ChatStreamingService.class
+com\deividnn\ChatStreamingApplication.class
+com\deividnn\provider\AiProvider.class
+com\deividnn\controller\ChatController.class
+com\deividnn\provider\ChatClientResolver.class
+com\deividnn\dto\ChatStreamChunk.class
+com\deividnn\dto\ChatRequest.class

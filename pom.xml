@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Raiz do descritor Maven (POM - Project Object Model).
+  Define metadados, versão do Java, dependências e plugins de build do projeto.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- Versão do modelo POM do Maven; 4.0.0 é o padrão obrigatório para projetos Maven atuais. -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      POM pai do Spring Boot: herda gerenciamento de versões de dependências, plugins
+      (como compiler e surefire) e configurações padrão recomendadas pelo ecossistema Spring.
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <!-- Versão mais recente estável do Spring Boot utilizada no projeto. -->
+        <version>4.2.0</version>
+        <!-- Valor vazio força o Maven a resolver o parent no repositório (local/Central) e não no diretório pai. -->
+        <relativePath/>
+    </parent>
+
+    <!-- Identificador do grupo/organização dono do artefato. -->
+    <groupId>com.deividnn</groupId>
+    <!-- Nome único do artefato gerado pelo build (ex.: chat-streaming-ai-0.0.1-SNAPSHOT.jar). -->
+    <artifactId>chat-streaming-ai</artifactId>
+    <!-- Versão atual da aplicação; SNAPSHOT indica versão em desenvolvimento. -->
+    <version>0.0.1-SNAPSHOT</version>
+    <!-- Nome legível do projeto exibido nos logs do Maven. -->
+    <name>chat-streaming-ai</name>
+
+    <!-- Propriedades reutilizáveis ao longo do POM para centralizar versões. -->
+    <properties>
+        <!-- Define a versão alvo de compilação/bytecode do Java (JDK 25), habilitando recursos modernos como Virtual Threads. -->
+        <java.version>25</java.version>
+        <!-- Versão do Spring AI usada pelo BOM para manter todos os provedores de IA alinhados. -->
+        <spring-ai.version>2.1.0</spring-ai.version>
+    </properties>
+
+    <!--
+      Gerenciamento centralizado de versões (BOM - Bill of Materials):
+      permite declarar starters do Spring AI abaixo sem repetir a tag <version> em cada um.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- BOM oficial do Spring AI que alinha versões compatíveis entre core e provedores. -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <!-- Tipo 'pom' indica que o artefato é um descritor de versões, não um JAR de classes. -->
+                <type>pom</type>
+                <!-- Escopo 'import' importa a tabela de versões gerenciadas do BOM para este POM. -->
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- Lista de bibliotecas necessárias para compilar, executar e testar a aplicação. -->
+    <dependencies>
+        <!-- Starter Web MVC (Spring Boot 4): fornece servidor embutido (Tomcat), REST controllers, JSON e SseEmitter para streaming. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+
+        <!-- Starter de Bean Validation (Hibernate Validator): habilita @Valid e @NotBlank nos DTOs de entrada. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Starter Spring AI para OpenAI: autoconfigura o bean OpenAiChatModel para chamadas à API da OpenAI. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+
+        <!-- Starter Spring AI para Google GenAI: autoconfigura o bean GoogleGenAiChatModel para modelos Gemini. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-google-genai</artifactId>
+        </dependency>
+
+        <!-- Starter Spring AI para Ollama: autoconfigura o bean OllamaChatModel para execução de modelos locais. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
+        </dependency>
+
+        <!-- Starter base de testes: inclui JUnit 5, Mockito, AssertJ e suporte ao @SpringBootTest. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <!-- Escopo 'test' garante que a dependência não seja empacotada no JAR final de produção. -->
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Starter modular de testes Web MVC (Spring Boot 4): fornece @WebMvcTest, @AutoConfigureMockMvc e MockMvc. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <!-- Escopo 'test' mantém a biblioteca restrita à fase de testes. -->
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- Configuração de plugins executados durante o ciclo de build do Maven. -->
+    <build>
+        <plugins>
+            <!-- Plugin do Spring Boot: empacota o fat/executable JAR e habilita goals como spring-boot:run. -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

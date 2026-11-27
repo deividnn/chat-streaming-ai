@@ -1,0 +1,44 @@
+# Definição dos serviços orquestrados pelo Kiri Compose (compatível com Docker Compose).
+services:
+  # Serviço principal da API Spring Boot de chat com streaming SSE.
+  chat-streaming-ai:
+    # Instruções para construir a imagem localmente a partir do Dockerfile do projeto.
+    build:
+      # Diretório raiz enviado como contexto de build ('.' = pasta atual).
+      context: .
+      # Nome do arquivo Dockerfile utilizado para compilar e empacotar a aplicação.
+      dockerfile: Dockerfile
+    # Nome fixo do container para facilitar comandos como 'kiri logs -f chat-streaming-ai'.
+    container_name: chat-streaming-ai
+    # Mapeamento de portas (host:container): expõe a porta 8080 da API para acesso em http://localhost:8080.
+    ports:
+      - "8080:8080"
+    # Variáveis de ambiente repassadas ao container em tempo de execução.
+    environment:
+      # Chave da OpenAI herdada do ambiente/host; padrão vazio se não estiver definida.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Chave do Google Gemini herdada do ambiente/host; padrão vazio se não estiver definida.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # URL do Ollama; por padrão aponta para o serviço 'ollama' na rede interna do Compose (http://ollama:11434).
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+    # Garante que o container do Ollama seja iniciado antes da aplicação Spring Boot.
+    depends_on:
+      - ollama
+
+  # Serviço do Ollama para rodar modelos de IA localmente dentro do mesmo stack de containers.
+  ollama:
+    # Imagem oficial mais recente do Ollama no Docker Hub.
+    image: ollama/ollama:latest
+    # Nome fixo do container do Ollama para facilitar inspeção e execução de comandos (ex.: pull de modelos).
+    container_name: chat-streaming-ollama
+    # Expõe a porta padrão 11434 do Ollama também para o host.
+    ports:
+      - "11434:11434"
+    # Monta um volume nomeado em /root/.ollama para persistir modelos baixados mesmo após recriar o container.
+    volumes:
+      - ollama_data:/root/.ollama
+
+# Declaração de volumes persistentes gerenciados pelo runtime de containers (Kiri/Docker).
+volumes:
+  # Volume dedicado ao cache/armazenamento dos modelos do Ollama para evitar downloads repetidos.
+  ollama_data:
