@@ -1,5 +1,8 @@
 package com.deividnn.config;
 
+import com.deividnn.provider.AiProvider;
+import java.util.EnumMap;
+import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -7,13 +10,14 @@ import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * Classe de configuração Spring responsável por criar a memória de conversação
- * e instanciar um {@link ChatClient} dedicado para cada provedor de IA suportado.
+ * e instanciar os {@link ChatClient}s disponíveis para os provedores de IA ativos.
  *
  * <p>{@code @Configuration} indica ao Spring que os métodos anotados com {@code @Bean}
  * devem ser registrados no container de injeção de dependências.
@@ -40,57 +44,61 @@ public class ChatAiConfig {
     }
 
     /**
-     * Registra o {@link ChatClient} nomeado {@code openAiChatClient} para chamadas à OpenAI.
+     * Monta o mapa de {@link ChatClient} apenas para os provedores cujos {@code ChatModel}
+     * foram efetivamente autoconfigurados no contexto.
      *
-     * <p>O nome explícito no {@code @Bean} é necessário porque existem múltiplos beans do tipo
-     * {@link ChatClient} no contexto e o {@code ChatClientResolver} seleciona cada um via {@code @Qualifier}.
+     * <p>Por que usar {@link ObjectProvider}: permite inicializar a aplicação usando apenas Ollama
+     * sem exigir chaves configuradas para OpenAI ou Google Gemini, ao mesmo tempo em que registra
+     * automaticamente OpenAI/Gemini assim que seus provedores forem habilitados.
      *
-     * @param chatModel    modelo autoconfigurado pelo starter da OpenAI
-     * @param chatMemory   memória de conversação compartilhada entre provedores
-     * @param systemPrompt prompt de sistema lido de {@code app.ai.system-prompt}
-     * @return cliente configurado para OpenAI
+     * @param openAiChatModel      provedor opcional do modelo OpenAI
+     * @param googleGenAiChatModel provedor opcional do modelo Google Gemini
+     * @param ollamaChatModel      provedor opcional do modelo Ollama
+     * @param chatMemory           memória de conversação compartilhada
+     * @param systemPrompt         prompt de sistema lido de {@code app.ai.system-prompt}
+     * @return mapa imutável de provedor para {@link ChatClient}
      */
-    @Bean("openAiChatClient")
-    ChatClient openAiChatClient(
-            OpenAiChatModel chatModel,
+    @Bean
+    Map<AiProvider, ChatClient> chatClients(
+            ObjectProvider<OpenAiChatModel> openAiChatModel,
+            ObjectProvider<GoogleGenAiChatModel> googleGenAiChatModel,
+            ObjectProvider<OllamaChatModel> ollamaChatModel,
             ChatMemory chatMemory,
             @Value("${app.ai.system-prompt}") String systemPrompt
     ) {
-        return buildClient(chatModel, chatMemory, systemPrompt);
+        Map<AiProvider, ChatClient> clients = new EnumMap<>(AiProvider.class);
+        openAiChatModel.ifAvailable(
+                model -> clients.put(AiProvider.OPENAI, buildClient(model, chatMemory, systemPrompt))
+        );
+        googleGenAiChatModel.ifAvailable(
+                model -> clients.put(AiProvider.GEMINI, buildClient(model, chatMemory, systemPrompt))
+        );
+        ollamaChatModel.ifAvailable(
+                model -> clients.put(AiProvider.OLLAMA, buildClient(model, chatMemory, systemPrompt))
+        );
+        return Map.copyOf(clients);
     }
 
     /**
-     * Registra o {@link ChatClient} nomeado {@code geminiChatClient} para chamadas ao Google Gemini.
+     * Mapeia o nome do modelo configurado para cada provedor de IA, utilizado para observabilidade/logs
+     * das chamadas de streaming.
      *
-     * @param chatModel    modelo autoconfigurado pelo starter Google GenAI
-     * @param chatMemory   memória de conversação compartilhada
-     * @param systemPrompt prompt de sistema padrão da aplicação
-     * @return cliente configurado para Google Gemini
+     * @param openAiModel modelo configurado em {@code spring.ai.openai.chat.options.model}
+     * @param geminiModel modelo configurado em {@code spring.ai.google.genai.chat.options.model}
+     * @param ollamaModel modelo configurado em {@code spring.ai.ollama.chat.options.model}
+     * @return mapa imutável de provedor para nome do modelo
      */
-    @Bean("geminiChatClient")
-    ChatClient geminiChatClient(
-            GoogleGenAiChatModel chatModel,
-            ChatMemory chatMemory,
-            @Value("${app.ai.system-prompt}") String systemPrompt
+    @Bean
+    Map<AiProvider, String> providerModels(
+            @Value("${spring.ai.openai.chat.options.model:gpt-4o-mini}") String openAiModel,
+            @Value("${spring.ai.google.genai.chat.options.model:gemini-2.5-flash}") String geminiModel,
+            @Value("${spring.ai.ollama.chat.options.model:qwen2.5:0.5b}") String ollamaModel
     ) {
-        return buildClient(chatModel, chatMemory, systemPrompt);
-    }
-
-    /**
-     * Registra o {@link ChatClient} nomeado {@code ollamaChatClient} para chamadas a modelos locais via Ollama.
-     *
-     * @param chatModel    modelo autoconfigurado pelo starter Ollama
-     * @param chatMemory   memória de conversação compartilhada
-     * @param systemPrompt prompt de sistema padrão da aplicação
-     * @return cliente configurado para Ollama
-     */
-    @Bean("ollamaChatClient")
-    ChatClient ollamaChatClient(
-            OllamaChatModel chatModel,
-            ChatMemory chatMemory,
-            @Value("${app.ai.system-prompt}") String systemPrompt
-    ) {
-        return buildClient(chatModel, chatMemory, systemPrompt);
+        return Map.of(
+                AiProvider.OPENAI, openAiModel,
+                AiProvider.GEMINI, geminiModel,
+                AiProvider.OLLAMA, ollamaModel
+        );
     }
 
     /**

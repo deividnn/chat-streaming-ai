@@ -1,5 +1,0 @@
-com\deividnn\controller\ChatControllerTest.class
-com\deividnn\provider\ChatClientResolverTest.class
-com\deividnn\service\ChatStreamingServiceTest.class
-com\deividnn\ChatStreamingIntegrationTest.class
-com\deividnn\provider\AiProviderTest.class

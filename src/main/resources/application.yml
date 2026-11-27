@@ -15,6 +15,11 @@ app:
 # Configurações oficiais do ecossistema Spring e Spring AI.
 spring:
   ai:
+    model:
+      # Define qual provedor de chat o Spring AI deve autoconfigurar ao subir a aplicação.
+      # Valor 'ollama' evita erro de inicialização quando OPENAI_API_KEY e GEMINI_API_KEY não estão definidas.
+      chat: ${AI_CHAT_MODEL:ollama}
+
     # Configurações do provedor OpenAI.
     openai:
       # Chave da API lida da variável de ambiente OPENAI_API_KEY; valor padrão vazio evita falha se o provedor não for usado.
@@ -44,7 +49,7 @@ spring:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       chat:
         options:
-          # Modelo local padrão no Ollama: 'llama3.2' é leve o suficiente para rodar em máquinas de desenvolvimento.
-          model: llama3.2
+          # Modelo local padrão no Ollama (configurável via OLLAMA_MODEL): 'qwen2.5:0.5b' (~398 MB) é ultraleve e rápido em CPU.
+          model: ${OLLAMA_MODEL:qwen2.5:0.5b}
           # Temperatura 0.7 alinhada aos demais provedores para comportamento consistente.
           temperature: 0.7

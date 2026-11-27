@@ -87,7 +87,7 @@ class ChatStreamingIntegrationTest {
         chatMemory.clear("it-conv-openai");
         chatMemory.clear("it-conv-gemini");
 
-        when(ollamaChatModel.getOptions()).thenReturn(OllamaChatOptions.builder().model("llama3.2").build());
+        when(ollamaChatModel.getOptions()).thenReturn(OllamaChatOptions.builder().model("qwen2.5:0.5b").build());
         when(openAiChatModel.getOptions()).thenReturn(OpenAiChatOptions.builder().model("gpt-4o-mini").build());
         when(googleGenAiChatModel.getOptions()).thenReturn(GoogleGenAiChatOptions.builder().model("gemini-2.5-flash").build());
     }
@@ -133,7 +133,7 @@ class ChatStreamingIntegrationTest {
                 .contains("\"content\":\"Olá, \"")
                 .contains("\"content\":\"tudo bem?\"")
                 .contains("event:done")
-                .contains("\"done\":true");
+                .contains("\"content\":\"Olá, tudo bem?\",\"done\":true");
 
         verify(ollamaChatModel).stream(any(Prompt.class));
 

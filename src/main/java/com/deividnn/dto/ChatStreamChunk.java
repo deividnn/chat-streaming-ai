@@ -9,7 +9,7 @@ package com.deividnn.dto;
  * @param conversationId identificador da conversa à qual este fragmento pertence, útil quando o cliente
  *                       mantém múltiplas sessões simultâneas
  * @param provider       nome em minúsculas do provedor que gerou o chunk (ex.: {@code "ollama"}, {@code "openai"}, {@code "gemini"})
- * @param content        fragmento de texto gerado pelo modelo nesta iteração (vazio no evento final {@code done})
+ * @param content        fragmento de texto gerado pelo modelo nesta iteração (ou o texto completo consolidado no evento final {@code done})
  * @param done           flag booleana que indica se o streaming foi concluído ({@code false} durante envio de chunks, {@code true} no término)
  */
 public record ChatStreamChunk(

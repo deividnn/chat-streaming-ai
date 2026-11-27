@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.Message;
@@ -23,6 +25,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Service
 public class ChatStreamingService {
 
+    /** Logger SLF4J usado para registrar qual provedor e modelo responderam a cada chamada de streaming. */
+    private static final Logger log = LoggerFactory.getLogger(ChatStreamingService.class);
+
     /** Resolve qual {@link ChatClient} (OpenAI, Gemini ou Ollama) deve atender cada requisição. */
     private final ChatClientResolver clientResolver;
 
@@ -33,7 +38,7 @@ public class ChatStreamingService {
     private final AiProvider defaultProvider;
 
     /**
-     * Executor baseado em Virtual Threads (Java 21+/25).
+     * Executor baseado em Virtual Threads (Java 25).
      *
      * <p>Por que usar {@link Executors#newVirtualThreadPerTaskExecutor()}: cada conexão SSE fica
      * aguardando chunks de I/O de rede dos LLMs; Virtual Threads permitem milhares de streams
@@ -73,10 +78,17 @@ public class ChatStreamingService {
     public SseEmitter streamChat(ChatRequest request) {
         AiProvider provider = AiProvider.fromNullable(request.provider(), defaultProvider);
         ChatClient chatClient = clientResolver.resolve(provider);
+        String providerName = provider.name().toLowerCase();
+        String model = clientResolver.resolveModel(provider);
         // Timeout 0L indica sem expiração fixa no emitter (controlado pelo ciclo de vida do stream).
         SseEmitter emitter = new SseEmitter(0L);
 
+        log.info("Iniciando stream de chat - conversationId={}, provider={}, model={}",
+                request.conversationId(), providerName, model);
+
         streamExecutor.submit(() -> {
+            // Acumula todos os chunks recebidos para enviar o texto completo consolidado no evento final "done".
+            StringBuilder fullResponse = new StringBuilder();
             try {
                 chatClient.prompt()
                         // Define a mensagem do usuário que será enviada ao modelo.
@@ -89,33 +101,40 @@ public class ChatStreamingService {
                         // Solicita resposta em modo streaming (Flux reativo) em vez de aguardar o texto completo.
                         .stream()
                         .content()
-                        // Para cada fragmento recebido do modelo, envia um evento SSE nomeado "message".
-                        .doOnNext(chunk -> sendEvent(
-                                emitter,
-                                "message",
-                                new ChatStreamChunk(
-                                        request.conversationId(),
-                                        provider.name().toLowerCase(),
-                                        chunk,
-                                        false
-                                )
-                        ))
-                        // Ao concluir o fluxo sem erros, envia o evento sinalizador "done" e fecha o emitter.
+                        // Para cada fragmento recebido do modelo, acumula o texto e envia um evento SSE nomeado "message".
+                        .doOnNext(chunk -> {
+                            fullResponse.append(chunk);
+                            sendEvent(
+                                    emitter,
+                                    "message",
+                                    new ChatStreamChunk(
+                                            request.conversationId(),
+                                            providerName,
+                                            chunk,
+                                            false
+                                    )
+                            );
+                        })
+                        // Ao concluir o fluxo sem erros, envia o evento "done" com o texto completo, loga sucesso e fecha o emitter.
                         .doOnComplete(() -> {
+                            log.info("Resposta concluída - conversationId={}, provider={}, model={}",
+                                    request.conversationId(), providerName, model);
                             sendEvent(
                                     emitter,
                                     "done",
                                     new ChatStreamChunk(
                                             request.conversationId(),
-                                            provider.name().toLowerCase(),
-                                            "",
+                                            providerName,
+                                            fullResponse.toString(),
                                             true
                                     )
                             );
                             emitter.complete();
                         })
-                        // Em caso de falha no Flux reativo, notifica o cliente com evento "error" e encerra com erro.
+                        // Em caso de falha no Flux reativo, loga o erro, notifica o cliente com evento "error" e encerra.
                         .doOnError(ex -> {
+                            log.error("Erro no stream de chat - conversationId={}, provider={}, model={}, erro={}",
+                                    request.conversationId(), providerName, model, ex.getMessage());
                             sendError(emitter, ex.getMessage());
                             emitter.completeWithError(ex);
                         })
@@ -123,6 +142,8 @@ public class ChatStreamingService {
                         .blockLast();
             } catch (Exception ex) {
                 // Captura falhas síncronas ou propagadas pelo blockLast() para garantir encerramento limpo do SSE.
+                log.error("Falha ao processar stream de chat - conversationId={}, provider={}, model={}, erro={}",
+                        request.conversationId(), providerName, model, ex.getMessage());
                 sendError(emitter, ex.getMessage());
                 emitter.completeWithError(ex);
             }
